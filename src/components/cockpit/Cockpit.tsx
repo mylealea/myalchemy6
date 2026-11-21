@@ -77,13 +77,6 @@ export function Cockpit({ w }: { w: Workspace }) {
     if (error) throw error; await refresh(); setSelectedId(data.id);
   });
   const sum = toBeSummary(w);
-  const hasClar = !!w.clarification && (((w.clarification.actors as unknown[]) ?? []).length > 0 || ((w.clarification.tools as unknown[]) ?? []).length > 0);
-  const steps = [
-    { label: "Clarification", done: hasClar, go: () => setLeft(true) },
-    { label: "As-Is", done: w.nodes.some((n) => !n.is_to_be), go: () => { setToBe(false); setSelectedId(null); } },
-    { label: "To-Be & skills", done: w.nodes.some((n) => n.is_to_be), go: () => { setToBe(true); setSelectedId(null); } },
-    { label: "Round Up", done: !!w.roundUp, go: () => setRight(true) },
-  ];
   const badge = (n: PNode) => {
     const d = toBe ? nodeDelta(w, n) : null;
     const missing = nodeSource(w, n).kind === "missing";
@@ -94,16 +87,19 @@ export function Cockpit({ w }: { w: Workspace }) {
     </>;
   };
   return <main className={`cockpit-shell ${zen ? "zen" : ""}`}>
-    {!zen && <><header className="workspace-topbar glass">
-      <Link to="/" className="brand flex shrink-0 items-center gap-2" title="Dossiers clients"><span className="aig size-6 rounded-lg" /><span className="font-semibold">Ecoflux</span></Link>
-      <div className="workspace-title min-w-0 flex-1 border-l border-border pl-4"><h1 className="truncate text-sm font-semibold">{w.process.title} — {w.client.name}</h1><p className="mt-1 truncate text-[11px] text-muted-foreground">Dossier #{w.process.reference ?? "Nouveau"} · {w.process.department ?? w.client.industry}</p></div>
-      <div className="flex shrink-0 items-center rounded-full border border-border bg-secondary p-1">{[false, true].map((v) => <Button key={String(v)} variant="ghost" size="sm" aria-pressed={toBe === v} className={`rounded-full text-xs ${toBe === v ? "bg-accent text-foreground" : "text-muted-foreground"}`} onClick={() => { setToBe(v); setSelectedId(null); }}>{v ? "To-Be" : "As-Is"}</Button>)}</div>
-      <Button variant="secondary" size="sm" className="shrink-0 rounded-full text-xs" title="Diagnostic, scénarios, gains et priorités" onClick={() => setInsightsOpen(true)}><Lightbulb className="text-amber" /> Analyse</Button>
-      <Button variant="secondary" size="sm" className="shrink-0 rounded-full text-xs" title="Comparer avant / après côte à côte" onClick={() => setCompareOpen(true)}><Columns2 /> Avant / Après</Button>
-      <Button variant="outline" className="holo shrink-0 rounded-full px-5 text-xs" disabled={pending || !w.nodes.length} onClick={consolidate}>{pending ? <Loader2 className="animate-spin" /> : <Zap className="text-amber" />} {pending ? "Consolidation…" : "Round Up"}</Button>
-    </header>
-    <nav aria-label="Étapes de la méthode" className="flex flex-wrap items-center gap-1 text-[11px]">{steps.map((st, i) => <button key={st.label} onClick={st.go} className={`flex items-center gap-1.5 rounded-full border px-2.5 py-1 transition hover:bg-accent ${st.done ? "border-cyan/40 text-foreground" : "border-border text-muted-foreground"}`}><span className={`grid size-4 place-items-center rounded-full font-mono text-[9px] ${st.done ? "bg-cyan/20 text-cyan" : "bg-secondary"}`}>{st.done ? "✓" : i + 1}</span>{st.label}</button>)}</nav>
-    <SkillsBar w={w} focus={studioId} onFocus={(s) => { setStudioId(s?.id ?? null); if (s) setToBe(true); }} /></>}
+    {!zen && <div className="group fixed bottom-4 left-4 z-40">
+      <div className="invisible absolute bottom-full left-0 pb-2 opacity-0 transition group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100">
+        <div className="glass flex w-56 flex-col gap-2 rounded-2xl border border-border p-2">
+          <Link to="/" className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-xs hover:bg-accent" title="Dossiers clients"><ArrowLeft className="size-3.5" /> Dossiers</Link>
+          <div className="flex items-center rounded-full border border-border bg-secondary p-1">{[false, true].map((v) => <Button key={String(v)} variant="ghost" size="sm" aria-pressed={toBe === v} className={`flex-1 rounded-full text-xs ${toBe === v ? "bg-accent text-foreground" : "text-muted-foreground"}`} onClick={() => { setToBe(v); setSelectedId(null); }}>{v ? "To-Be" : "As-Is"}</Button>)}</div>
+          <Button variant="secondary" size="sm" className="justify-start rounded-full text-xs" onClick={() => setInsightsOpen(true)}><Lightbulb className="text-amber" /> Analyse</Button>
+          <Button variant="secondary" size="sm" className="justify-start rounded-full text-xs" onClick={() => setCompareOpen(true)}><Columns2 /> Avant / Après</Button>
+          <Button variant="outline" className="holo justify-start rounded-full text-xs" disabled={pending || !w.nodes.length} onClick={consolidate}>{pending ? <Loader2 className="animate-spin" /> : <Zap className="text-amber" />} {pending ? "Consolidation…" : "Round Up"}</Button>
+        </div>
+      </div>
+      <Button variant="outline" size="sm" className="holo rounded-full text-xs" aria-label="Actions du dossier"><Zap className="text-amber" /> {toBe ? "To-Be" : "As-Is"} · Actions</Button>
+    </div>}
+    {!zen && <>    <SkillsBar w={w} focus={studioId} onFocus={(s) => { setStudioId(s?.id ?? null); if (s) setToBe(true); }} /></>}
     <div className={`workspace-grid ${!zen && left ? "left-open" : ""} ${!zen && right ? "right-open" : ""}`}>
       {zen ? null : left ? <ClarificationPanel key={w.process.id} w={w} onClose={() => setLeft(false)} /> : <div className="clarification-rail glass"><Button variant="ghost" size="icon" aria-label="Ouvrir la clarification" onClick={() => setLeft(true)}><ChevronRight /></Button><span>ÉTAPE 1 · CLARIFICATION</span></div>}
       <section className="canvas-section relative min-h-0 min-w-0">

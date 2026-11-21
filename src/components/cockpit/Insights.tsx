@@ -9,7 +9,7 @@ import { CONFIDENCE_LABEL, confidence, diagnostics, engineInput, opportunities, 
 import type { PNode } from "@/lib/eco/types";
 
 export function SuggestionChips({ w, node, onPick, disabled }: { w: Workspace; node: PNode | null; onPick: (t: string) => void; disabled?: boolean }) {
-  return <div className="flex flex-wrap gap-1.5">{suggestions(w, node).map((s) => <button key={s} disabled={disabled} onClick={() => onPick(s)} className="flex items-center gap-1 rounded-full border border-border bg-card/90 px-2.5 py-1 text-[11px] text-muted-foreground backdrop-blur transition hover:border-cyan/50 hover:text-foreground disabled:opacity-40"><Sparkles className="size-3 text-cyan" />{s}</button>)}</div>;
+  return <div className="flex gap-1.5 overflow-x-auto pb-1 [scrollbar-width:thin]">{suggestions(w, node).map((s) => <button key={s} disabled={disabled} onClick={() => onPick(s)} className="flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full border border-border bg-card/90 px-2.5 py-1 text-[11px] text-muted-foreground backdrop-blur transition hover:border-cyan/50 hover:text-foreground disabled:opacity-40"><Sparkles className="size-3 text-cyan" />{s}</button>)}</div>;
 }
 
 const TABS = ["Diagnostic", "Scénarios", "Gains", "Priorités"] as const;
