@@ -9,6 +9,7 @@ import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 import { COLOR_LABEL, TYPE_LABEL, tone, TONE_BORDER, TONE_TEXT } from "./grammar";
 import { Composer, Messages } from "./ChatThread";
+import { SuggestionChips } from "./Insights";
 
 const field = "w-full rounded-lg border border-border bg-secondary px-2.5 py-1.5 text-[13px] outline-none focus:border-violet/60";
 
@@ -165,6 +166,7 @@ export function Inspector({ w, node, onChange, onDelete, onConnect, onDisconnect
         </div>
       </div>
       <div className="space-y-2 border-t border-border p-3">
+        <SuggestionChips w={w} node={node} disabled={chat.pending} onPick={(t) => void chat.send(t, node.id)} />
         <Composer onSend={(t) => chat.send(t, node.id)} pending={chat.pending} placeholder={`Challenger #${md.ref}…`} />
         <button onClick={onDelete} className="flex w-full items-center justify-center gap-1.5 rounded-lg py-1.5 text-[12px] text-carmine hover:bg-carmine/10"><Trash2 className="size-3.5" /> Supprimer cette étape</button>
       </div>

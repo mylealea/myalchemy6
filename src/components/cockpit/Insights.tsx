@@ -1,9 +1,11 @@
 import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { AlertTriangle, Sparkles } from "lucide-react";
 import { metricsFor, toEngine } from "@/lib/eco/context";
 import { eur, formatDuration, num } from "@/lib/eco/engine";
-import { meta, type Workspace } from "@/lib/eco/data";
-import { CONFIDENCE_LABEL, confidence, diagnostics, engineInput, opportunities, scenarios, suggestions } from "@/lib/eco/insights";
+import { meta, updateNode, wsKey, type Workspace } from "@/lib/eco/data";
+import { CONFIDENCE_LABEL, confidence, diagnostics, engineInput, opportunities, scenarios, simulate, suggestions, type ScenarioKey } from "@/lib/eco/insights";
 import type { PNode } from "@/lib/eco/types";
 
 export function SuggestionChips({ w, node, onPick, disabled }: { w: Workspace; node: PNode | null; onPick: (t: string) => void; disabled?: boolean }) {
@@ -35,8 +37,28 @@ function Scenarios({ w }: { w: Workspace }) {
   const list = scenarios(w);
   const current = metricsFor(w);
   if (!w.nodes.some((n) => !n.is_to_be)) return <p className="text-xs text-muted-foreground">Construisez d'abord le schéma actuel pour simuler des scénarios.</p>;
-  const rows = [...list.map((s) => ({ title: s.title, desc: s.desc, r: s.result })), { title: "Votre To-Be", desc: "Le schéma cible actuellement modélisé.", r: current }];
-  return <div className="space-y-3"><div className="grid gap-3 sm:grid-cols-2">{rows.map((s) => <div key={s.title} className="glass rounded-[16px] p-3 text-xs"><p className="font-medium">{s.title}</p><p className="mb-2 text-[11px] text-muted-foreground">{s.desc}</p><dl className="space-y-1"><Row k="Gain net annuel" v={`+${eur(s.r.netGain)}`} c="text-cyan" /><Row k="Investissement" v={eur(s.r.implementationCost)} /><Row k="Retour sur investissement" v={s.r.paybackDays === null ? "—" : s.r.paybackDays === 0 ? "immédiat" : `${s.r.paybackDays} j`} /><Row k="Délai de cycle" v={`−${Math.round(s.r.cycleReduction)} %`} /></dl></div>)}</div><p className="text-[11px] text-muted-foreground">Hypothèses : une étape automatisée garde 10 % de son temps de travail et coûte {eur(6000)} à mettre en place.</p></div>;
+  const qc = useQueryClient();
+  const [busy, setBusy] = useState<ScenarioKey | null>(null);
+  const norm = (s: string) => s.trim().toLowerCase();
+  async function apply(key: ScenarioKey, title: string) {
+    setBusy(key);
+    try {
+      const sim = simulate(w.nodes.filter((n) => !n.is_to_be).map(toEngine), key, engineInput(w));
+      let count = 0;
+      for (const s of sim) {
+        const target = w.nodes.find((n) => n.is_to_be && norm(n.label) === norm(s.label));
+        if (!target) continue;
+        await updateNode(target.id, { cycle_time_minutes: s.cycle_time_minutes, wait_time_minutes: s.wait_time_minutes, is_automated: s.is_automated });
+        count++;
+      }
+      await qc.invalidateQueries({ queryKey: wsKey(w.process.id) });
+      if (count) toast.success(`Scénario « ${title} » appliqué à ${count} étape(s) du To-Be.`);
+      else toast.error("Aucune étape To-Be ne correspond aux étapes actuelles.");
+    } catch (e) { toast.error(e instanceof Error ? e.message : "L'application a échoué."); }
+    finally { setBusy(null); }
+  }
+  const rows = [...list.map((s) => ({ key: s.key as ScenarioKey | null, title: s.title, desc: s.desc, r: s.result })), { key: null, title: "Votre To-Be", desc: "Le schéma cible actuellement modélisé.", r: current }];
+  return <div className="space-y-3"><div className="grid gap-3 sm:grid-cols-2">{rows.map((s) => <div key={s.title} className="glass rounded-[16px] p-3 text-xs"><p className="font-medium">{s.title}</p><p className="mb-2 text-[11px] text-muted-foreground">{s.desc}</p><dl className="space-y-1"><Row k="Gain net annuel" v={`+${eur(s.r.netGain)}`} c="text-cyan" /><Row k="Investissement" v={eur(s.r.implementationCost)} /><Row k="Retour sur investissement" v={s.r.paybackDays === null ? "—" : s.r.paybackDays === 0 ? "immédiat" : `${s.r.paybackDays} j`} /><Row k="Délai de cycle" v={`−${Math.round(s.r.cycleReduction)} %`} /></dl>{s.key && <button disabled={busy !== null} onClick={() => void apply(s.key!, s.title)} className="mt-2 w-full rounded-full border border-border px-2 py-1 text-[11px] text-muted-foreground hover:border-cyan/50 hover:text-foreground disabled:opacity-40">{busy === s.key ? "Application…" : "Appliquer au To-Be"}</button>}</div>)}</div><p className="text-[11px] text-muted-foreground">Hypothèses : une étape automatisée garde 10 % de son temps de travail et coûte {eur(6000)} à mettre en place.</p></div>;
 }
 
 function Row({ k, v, c }: { k: string; v: string; c?: string }) { return <div className="flex justify-between gap-2"><dt className="text-muted-foreground">{k}</dt><dd className={c}>{v}</dd></div>; }
