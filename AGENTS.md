@@ -28,3 +28,10 @@ use the editor.
   own key and store it in Secrets.
 - **Secrets.** Lovable manages them. Do not put secret values in the repo.
 <!-- LOVABLE:END -->
+
+## Application structure
+- Keep dossier overview at `/` and each economic workspace at `/process/$id`; share browser-safe query and calculation modules so all views use the same persisted inputs.
+- Generate playbooks from the saved Round Up and include node and message references; exports must not invent decision sources.
+
+- Pages under src/routes/_authenticated/ require sign-in (client-only gate to /auth); data isolation relies on user_id RLS in Supabase.
+- Source and To-Be delta logic live in src/lib/eco/sources.ts so Inspector, canvas badges and solution panel share one rule: never invent a source, mark it missing.

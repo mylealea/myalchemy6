@@ -1,0 +1,2 @@
+ALTER TABLE public.processes ADD COLUMN IF NOT EXISTS reference TEXT, ADD COLUMN IF NOT EXISTS department TEXT;
+ALTER TABLE public.process_nodes ADD COLUMN IF NOT EXISTS wait_time_minutes NUMERIC NOT NULL DEFAULT 0;

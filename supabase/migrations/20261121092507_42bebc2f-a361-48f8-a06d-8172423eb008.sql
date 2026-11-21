@@ -1,0 +1,10 @@
+DROP POLICY IF EXISTS "Accès complet aux chat_messages" ON public.chat_messages;
+DROP POLICY IF EXISTS "Accès complet aux clarifications" ON public.clarifications;
+DROP POLICY IF EXISTS "Accès complet aux clients" ON public.clients;
+DROP POLICY IF EXISTS "Accès complet aux process_edges" ON public.process_edges;
+DROP POLICY IF EXISTS "Accès complet aux process_nodes" ON public.process_nodes;
+DROP POLICY IF EXISTS "Accès complet aux process_skills" ON public.process_skills;
+DROP POLICY IF EXISTS "Accès complet aux processus" ON public.processes;
+DROP POLICY IF EXISTS "Accès complet aux round_up_solutions" ON public.round_up_solutions;
+DROP POLICY IF EXISTS "Accès complet aux skills" ON public.skills;
+REVOKE EXECUTE ON FUNCTION public.handle_new_user() FROM anon, authenticated, public;
