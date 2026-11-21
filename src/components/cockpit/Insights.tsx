@@ -14,12 +14,12 @@ export function SuggestionChips({ w, node, onPick, disabled }: { w: Workspace; n
 
 const TABS = ["Diagnostic", "Scénarios", "Gains", "Priorités"] as const;
 
-export function InsightsPanel({ w, onFocusNode }: { w: Workspace; onFocusNode: (id: string) => void }) {
+export function InsightsPanel({ w, onFocusNode, onApplied }: { w: Workspace; onFocusNode: (id: string) => void; onApplied?: () => void }) {
   const [tab, setTab] = useState<(typeof TABS)[number]>("Diagnostic");
   return <div className="flex flex-col gap-4">
     <div className="flex gap-1 rounded-full border border-border bg-secondary p-1">{TABS.map((t) => <button key={t} onClick={() => setTab(t)} className={`flex-1 rounded-full px-3 py-1 text-xs ${tab === t ? "bg-accent text-foreground" : "text-muted-foreground"}`}>{t}</button>)}</div>
     {tab === "Diagnostic" && <Diagnostics w={w} onFocusNode={onFocusNode} />}
-    {tab === "Scénarios" && <Scenarios w={w} />}
+    {tab === "Scénarios" && <Scenarios w={w} onApplied={onApplied} />}
     {tab === "Gains" && <Waterfall w={w} />}
     {tab === "Priorités" && <Matrix w={w} onFocusNode={onFocusNode} />}
   </div>;
@@ -33,7 +33,7 @@ function Diagnostics({ w, onFocusNode }: { w: Workspace; onFocusNode: (id: strin
   return <div className="space-y-4">{block("Processus actuel (As-Is)", asIs)}{block("Processus cible (To-Be)", toBe)}<p className="text-[11px] text-muted-foreground">Cliquez une alerte pour ouvrir l'étape concernée.</p></div>;
 }
 
-function Scenarios({ w }: { w: Workspace }) {
+function Scenarios({ w, onApplied }: { w: Workspace; onApplied?: (() => void) | undefined }) {
   const list = scenarios(w);
   const current = metricsFor(w);
   if (!w.nodes.some((n) => !n.is_to_be)) return <p className="text-xs text-muted-foreground">Construisez d'abord le schéma actuel pour simuler des scénarios.</p>;
@@ -44,15 +44,24 @@ function Scenarios({ w }: { w: Workspace }) {
     setBusy(key);
     try {
       const sim = simulate(w.nodes.filter((n) => !n.is_to_be).map(toEngine), key, engineInput(w));
+      const byPos = (a: PNode, b: PNode) => a.position_x - b.position_x || a.position_y - b.position_y;
+      const asIsSorted = w.nodes.filter((n) => !n.is_to_be).sort(byPos);
+      const toBeSorted = w.nodes.filter((n) => n.is_to_be).sort(byPos);
+      const used = new Set<string>();
       let count = 0;
       for (const s of sim) {
-        const target = w.nodes.find((n) => n.is_to_be && norm(n.label) === norm(s.label));
+        let target = toBeSorted.find((n) => !used.has(n.id) && norm(n.label) === norm(s.label));
+        if (!target) { const i = asIsSorted.findIndex((n) => n.id === s.id); const c = toBeSorted[i]; if (c && !used.has(c.id) && c.action_type !== "event") target = c; }
         if (!target) continue;
-        await updateNode(target.id, { cycle_time_minutes: s.cycle_time_minutes, wait_time_minutes: s.wait_time_minutes, is_automated: s.is_automated });
+        used.add(target.id);
+        const patch: Partial<PNode> = { cycle_time_minutes: s.cycle_time_minutes, wait_time_minutes: s.wait_time_minutes, is_automated: s.is_automated };
+        if (s.is_automated) Object.assign(patch, { color_code: "automated", action_type: "automated_agent", assigned_role: "Agent IA" });
+        else if (target.action_type === "automated_agent") Object.assign(patch, { color_code: "value_add", action_type: "operation" });
+        await updateNode(target.id, patch as Parameters<typeof updateNode>[1]);
         count++;
       }
       await qc.invalidateQueries({ queryKey: wsKey(w.process.id) });
-      if (count) toast.success(`Scénario « ${title} » appliqué à ${count} étape(s) du To-Be.`);
+      if (count) toast.success(`Scénario « ${title} » appliqué à ${count} étape(s) du To-Be.`); if (count) onApplied?.();
       else toast.error("Aucune étape To-Be ne correspond aux étapes actuelles.");
     } catch (e) { toast.error(e instanceof Error ? e.message : "L'application a échoué."); }
     finally { setBusy(null); }
